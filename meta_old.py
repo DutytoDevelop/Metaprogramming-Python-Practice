@@ -1,3 +1,4 @@
+#Imports
 from inspect import Parameter,Signature
 
 
@@ -30,6 +31,15 @@ class Typed(Descriptor):
         super().__set__(instance,value)
 
 
+class Integer(Typed):
+    ty = int
+
+class Float(Typed):
+    ty = float
+
+class String(Typed):
+    ty = str
+
 class Contains(Descriptor):
     def __init__(self,*args,contains_char,**kwargs):
         self.contains_char = contains_char
@@ -39,6 +49,22 @@ class Contains(Descriptor):
         if not self.contains_char in value:
             raise ValueError('String does not contain %s' % self.contains_char)
         super().__set__(instance,value)
+
+class StringContains(String,Contains):
+    pass
+
+
+class Positive(Descriptor):
+    def __set__(self,instance,value):
+        if(value < 0):
+            raise ValueError('Must be >=0')
+        super().__set__(instance,value)
+
+class PostiveInteger(Integer,Positive): # ORDER OF PARAMS MATTER (e.g int before < 0 )
+    pass
+
+class PositiveFloat(Float,Positive):
+    pass
 
 
 class Sized(Descriptor):
@@ -52,38 +78,6 @@ class Sized(Descriptor):
             raise ValueError('Too big')
         super().__set__(instance,value)
 
-
-class Integer(Typed):
-    ty = int
-
-
-class Float(Typed):
-    ty = float
-
-
-class String(Typed):
-    ty = str
-
-
-class StringContains(String,Contains):
-    pass
-
-
-class Positive(Descriptor):
-    def __set__(self,instance,value):
-        if(value < 0):
-            raise ValueError('Must be >=0')
-        super().__set__(instance,value)
-
-
-class PostiveInteger(Integer,Positive): # ORDER OF PARAMS MATTER (e.g int before < 0 )
-    pass
-
-
-class PositiveFloat(Float,Positive):
-    pass
-
-
 class SizedString(String,Sized):
     pass
 
@@ -91,36 +85,22 @@ class SizedString(String,Sized):
 class SizedStringContains(SizedString,Contains):
     pass
 
-
 def make_signature(names):
     return Signature(Parameter(name,Parameter.POSITIONAL_OR_KEYWORD) for name in names)
 
-
-from collections import OrderedDict
-
-
 class NicksMetastructure(type):
-    @classmethod
-    def __prepare__(cls,name,bases):
-        return OrderedDict()
 
-    def __new__(cls,clsname,bases,clsdict):
-        #Collect Descriptors and set their names
-        fields = [key for key, val in clsdict.items() if isinstance(val,Descriptor)]
+    def __new__(cls,name,bases,clsdict):
+        clsobj = super().__new__(cls,name,bases,clsdict)
 
-        for name in fields:
-            print(name)
-            clsdict[name].name = name
-        clsobj = super().__new__(cls,clsname,bases,dict(clsdict))
-
-        sig = make_signature(fields)
+        sig = make_signature(clsobj._fields)
         setattr(clsobj,'__signature__',sig)
         return clsobj
 
 
 class NicksClass(metaclass=NicksMetastructure):
 
-    _fields = ['name']
+    _fields = []
 
     def __init__(self,*args,**kwargs):
         bound = self.__signature__.bind(*args,**kwargs)
@@ -130,19 +110,20 @@ class NicksClass(metaclass=NicksMetastructure):
 
 
 class Stock(NicksClass):
+    _fields = ['name','shares','price']
 
-    name = SizedStringContains(maxlen=5,contains_char='Z') # maxlen and contains_char are interchangeable
-    shares = PostiveInteger()
-    price = PositiveFloat()
+    name = SizedStringContains('name',maxlen=5,contains_char='Z') # maxlen and contains_char are interchangeable
+    shares = PostiveInteger('shares')
+    price = PositiveFloat('price')
 
 
 def main():
-    s = Stock('FOOZ', 10, 1.00)  # Creates Stock object
+    s = Stock('FOOI', 10, 1.00)  # Creates Stock object
 
     print(type(s.name))  # name is a string with a max length of 5, contains char then returns the string, else err
 
-    #.name = 'I'  # returns value, which is a string, otherwise raise error on **first** failed condition
-    #s.name = 'II'  # returns value, which is a string, otherwise raise error on **first** failed condition
+    s.name = 'I'  # returns value, which is a string, otherwise raise error on **first** failed condition
+    s.name = 'II'  # returns value, which is a string, otherwise raise error on **first** failed condition
     # s.name='NOOOOI' # returns ValueError: Too big (maxlen = 5, contains_char='I')
     # s.name='NOOO' # returns Value Error: String does not contain Z (maxlen = 5, contains_char='Z')
 
