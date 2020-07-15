@@ -1,4 +1,18 @@
+import timeit
+timeit
 from inspect import Parameter,Signature
+import ast
+import tkinter
+
+def exec_then_eval(code):
+    block = ast.parse(code, mode='exec')
+
+    # assumes last node is an expression
+    last = ast.Expression(block.body.pop().value)
+
+    _globals, _locals = {}, {}
+    exec(compile(block, '<string>', mode='exec'), _globals, _locals)
+    return eval(compile(last, '<string>', mode='eval'), _globals, _locals)
 
 
 class Descriptor:
@@ -129,17 +143,21 @@ class NicksClass(metaclass=NicksMetastructure):
             setattr(self,name,val)
 
 
+class SkelectonStruct(NicksClass):
+    expression = String()
+
+
 class Stock(NicksClass):
 
-    name = SizedStringContains(maxlen=5,contains_char='Z') # maxlen and contains_char are interchangeable
+    data = SizedStringContains(maxlen=5,contains_char='Z') # maxlen and contains_char are interchangeable
     shares = PostiveInteger()
     price = PositiveFloat()
 
 
-def main():
+def old_main():
     s = Stock('FOOZ', 10, 1.00)  # Creates Stock object
 
-    print(type(s.name))  # name is a string with a max length of 5, contains char then returns the string, else err
+    print(type(s.data))  # name is a string with a max length of 5, contains char then returns the string, else err
 
     #.name = 'I'  # returns value, which is a string, otherwise raise error on **first** failed condition
     #s.name = 'II'  # returns value, which is a string, otherwise raise error on **first** failed condition
@@ -147,6 +165,20 @@ def main():
     # s.name='NOOO' # returns Value Error: String does not contain Z (maxlen = 5, contains_char='Z')
 
     print(PostiveInteger.__mro__)  # Checks PositiveInteger -> Integer -> Typed -> Positive -> Descriptor -> object
+
+class print_string():
+    string = "Test"
+    print(string)
+timeit.timeit(print_string())
+
+def main():
+    class_struct = SkelectonStruct('''
+class print_string():
+    string = "Test"
+    print(string)
+timeit.timeit(print_string())
+''')
+    exec_then_eval(SkelectonStruct.expression)
 
 
 if __name__ == '__main__':
