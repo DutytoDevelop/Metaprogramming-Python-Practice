@@ -1,4 +1,4 @@
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, getfullargspec
 
 '''
 def exec_then_eval(code):
@@ -11,6 +11,20 @@ def exec_then_eval(code):
     exec(compile(block, '<string>', mode='exec'), _globals, _locals)
     return eval(compile(last, '<string>', mode='eval'), _globals, _locals)
 '''
+
+
+def _make_init(fields):
+    # Takes fields, make __init__ method
+    code = 'def __init__(self,%s):\n' % \
+           ','.join(fields)
+
+    for name in fields:
+        code += "   self.%s = %s\n" % (name, name)
+    return code
+
+
+def make_signature(names):
+    return Signature(Parameter(name, Parameter.POSITIONAL_OR_KEYWORD) for name in names)
 
 
 class Descriptor:
@@ -104,14 +118,17 @@ class SizedStringContains(SizedString, Contains):
     pass
 
 
-def make_signature(names):
-    return Signature(Parameter(name, Parameter.POSITIONAL_OR_KEYWORD) for name in names)
-
-
 from collections import OrderedDict
 
 
-class NicksMetastructure(type):
+class NoDupOrderedDict(OrderedDict):
+    def __setitem__(self, key, value):
+        if key in self:
+            raise NameError('%s already defined' % key)
+        super().__setitem__(key, value)
+
+
+class Metastructure(type):
     """
     OrderedDict() keeps things in order as they are provided... think FIFO when providing arguments to this function...
 
@@ -134,8 +151,9 @@ class NicksMetastructure(type):
 
     @classmethod
     def __prepare__(cls, name, bases):
+
         """
-        See Example Structure above :)
+        See 'Example Structure' above :)
 
         You could customize what you want to return, if you wanted to do duplicate variable detection then simply
         implement the function displayed in 1:33:22 in 'Python 3 Metaprogramming' YouTube video by David Beazley
@@ -145,14 +163,13 @@ class NicksMetastructure(type):
         THANK YOU DAVID BEAZLEY
         """
 
-        print("OrderedDict passed by __prepare__ classmethod:", OrderedDict)
-        return OrderedDict()
+        return NoDupOrderedDict()
 
     def __new__(mcs, clsname, bases, clsdict):
         # Collect Descriptors and set their names
 
         """
-        Anaylzing __new__:
+        Analyzing __new__:
 
         Explanation:
             Everything returned in clsdict.items() is returned and added to fields array
@@ -165,22 +182,38 @@ class NicksMetastructure(type):
         for name in fields:
             print(name)
             clsdict[name].name = name
+
+        if fields:
+            init_code = _make_init(fields)
+            exec(init_code, globals(), clsdict)
+
         clsobj = super().__new__(mcs, clsname, bases, dict(clsdict))
 
-        sig = make_signature(fields)
-        setattr(clsobj, '__signature__', sig)
-        print(sig)
         return clsobj
 
 
-class MetaClass(metaclass=NicksMetastructure):
+class MetaClass(metaclass=Metastructure):
     _fields = ['name']
 
-    def __init__(self, *args, **kwargs):
-        bound = self.__signature__.bind(*args, **kwargs)
+    """
+    
+    Since MetaClass is only inherited, __init__ does not get run
+    
+    def __init__(self):
+        super().__init__()
+        print(self.__name__)
+            
+    """
 
-        for name, val in bound.arguments.items():
-            setattr(self, name, val)
+    def __init_subclass__(cls, all_subclasses=[], **kwargs):
+        print("We're inside the MetaClass, printing inheriting subclass names when subclass is :", cls.__name__)
+        print("Printing each argument inside of", cls.__name__, "below:")
+
+        cls.all_subclasses = all_subclasses
+        cls.all_subclasses.append(cls.__name__)
+
+        for obj in getfullargspec(cls)[0]:
+            print("OBJECT", obj, "CONTAINS", cls.__dict__.values())
 
 
 class SkeletonStruct(MetaClass):
@@ -219,7 +252,8 @@ class futureClassStruct(MetaClass):
 def old_main():
     s = Stock('FOOZ', 10, 1.00, 52)  # Creates Stock object
 
-    print(type(s.data))  # name is a string with a max length of 5, contains char then returns the string, else err
+    print("Type of s.data:",
+          type(s.data))  # name is a string with a max length of 5, contains char then returns the string, else err
 
     # .name = 'I'  # returns value, which is a string, otherwise raise error on **first** failed condition
     # s.name = 'II'  # returns value, which is a string, otherwise raise error on **first** failed condition
@@ -230,22 +264,24 @@ def old_main():
     print(s.test_var)
 
 
-class print_string:
+class PrintString:
     string = "Test"
     print(string)
 
 
 def main():
-    class_struct = SkeletonStruct('''
+    expression = '''
 class print_string():
     string = "Successfully executed string code!! Keep it up buddy."
     print(string)
-''')
+'''
+
+    class_struct = SkeletonStruct(expression)
 
     exec(class_struct.expression)
     s = Stock('FOOZ', 10, 1.00, 52)  # Creates Stock object
     print(s.data)
-    s.func_test("))", 2, 5, test=5)
+    s.func_test("Non-kwarg1", 2, 5, test=5)
     print(s.__dict__)
 
 

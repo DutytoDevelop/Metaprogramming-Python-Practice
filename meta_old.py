@@ -1,5 +1,5 @@
-#Imports
-from inspect import Parameter,Signature
+# Imports
+from inspect import Parameter, Signature
 
 
 class Descriptor:
@@ -9,110 +9,118 @@ class Descriptor:
 
     # Instance getting manipulated
 
-    def __get__(self,instance,cls):
-        print("Get",self.name)
+    def __get__(self, instance, cls):
+        print("Get", self.name)
         return instance.__dict__[self.name]
 
-    def __set__(self,instance,value):
-        print("Set",self.name,value)
+    def __set__(self, instance, value):
+        print("Set", self.name, value)
         instance.__dict__[self.name] = value
 
-    def __delete__(self,instance):
-        print("Delete",self.name)
+    def __delete__(self, instance):
+        print("Delete", self.name)
         del instance.__dict__[self.name]
 
 
 class Typed(Descriptor):
     ty = object  # Expected type
 
-    def __set__(self,instance,value):
-        if not isinstance(value,self.ty):
+    def __set__(self, instance, value):
+        if not isinstance(value, self.ty):
             raise TypeError("Expected %s" % self.ty)
-        super().__set__(instance,value)
+        super().__set__(instance, value)
 
 
 class Integer(Typed):
     ty = int
 
+
 class Float(Typed):
     ty = float
+
 
 class String(Typed):
     ty = str
 
-class Contains(Descriptor):
-    def __init__(self,*args,contains_char,**kwargs):
-        self.contains_char = contains_char
-        super().__init__(*args,**kwargs)
 
-    def __set__(self,instance,value):
+class Contains(Descriptor):
+    def __init__(self, *args, contains_char, **kwargs):
+        self.contains_char = contains_char
+        super().__init__(*args, **kwargs)
+
+    def __set__(self, instance, value):
         if not self.contains_char in value:
             raise ValueError('String does not contain %s' % self.contains_char)
-        super().__set__(instance,value)
+        super().__set__(instance, value)
 
-class StringContains(String,Contains):
+
+class StringContains(String, Contains):
     pass
 
 
 class Positive(Descriptor):
-    def __set__(self,instance,value):
-        if(value < 0):
+    def __set__(self, instance, value):
+        if value < 0:
             raise ValueError('Must be >=0')
-        super().__set__(instance,value)
+        super().__set__(instance, value)
 
-class PostiveInteger(Integer,Positive): # ORDER OF PARAMS MATTER (e.g int before < 0 )
+
+class PostiveInteger(Integer, Positive):  # ORDER OF PARAMS MATTER (e.g int before < 0 )
     pass
 
-class PositiveFloat(Float,Positive):
+
+class PositiveFloat(Float, Positive):
     pass
 
 
 class Sized(Descriptor):
 
-    def __init__(self,*args,maxlen,**kwargs):
+    def __init__(self, *args, maxlen, **kwargs):
         self.maxlen = maxlen
-        super().__init__(*args,**kwargs)
+        super().__init__(*args, **kwargs)
 
-    def __set__(self,instance,value):
+    def __set__(self, instance, value):
         if len(value) > self.maxlen:
             raise ValueError('Too big')
-        super().__set__(instance,value)
+        super().__set__(instance, value)
 
-class SizedString(String,Sized):
+
+class SizedString(String, Sized):
     pass
 
 
-class SizedStringContains(SizedString,Contains):
+class SizedStringContains(SizedString, Contains):
     pass
+
 
 def make_signature(names):
-    return Signature(Parameter(name,Parameter.POSITIONAL_OR_KEYWORD) for name in names)
+    return Signature(Parameter(name, Parameter.POSITIONAL_OR_KEYWORD) for name in names)
+
 
 class NicksMetastructure(type):
 
-    def __new__(cls,name,bases,clsdict):
-        clsobj = super().__new__(cls,name,bases,clsdict)
+    def __new__(mcs, name, bases, clsdict):
+        clsobj = super().__new__(mcs, name, bases, clsdict)
 
         sig = make_signature(clsobj._fields)
-        setattr(clsobj,'__signature__',sig)
+        setattr(clsobj, '__signature__', sig)
         return clsobj
 
 
-class NicksClass(metaclass=NicksMetastructure):
-
+class MetaClass(metaclass=NicksMetastructure):
     _fields = []
 
-    def __init__(self,*args,**kwargs):
-        bound = self.__signature__.bind(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        bound = self.__signature__.bind(*args, **kwargs)
 
         for name, val in bound.arguments.items():
-            setattr(self,name,val)
+            setattr(self, name, val)
 
 
-class Stock(NicksClass):
-    _fields = ['name','shares','price']
+class Stock(MetaClass):
+    _fields = ['name', 'shares', 'price']
 
-    name = SizedStringContains('name',maxlen=5,contains_char='Z') # maxlen and contains_char are interchangeable
+    name = SizedStringContains('name', maxlen=5, contains_char='Z')  # maxlen and contains_char are interchangeable
     shares = PostiveInteger('shares')
     price = PositiveFloat('price')
 
@@ -132,4 +140,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

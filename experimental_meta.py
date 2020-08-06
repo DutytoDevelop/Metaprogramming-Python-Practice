@@ -1,6 +1,7 @@
+import ast
 from inspect import Parameter, Signature
 
-'''
+
 def exec_then_eval(code):
     block = ast.parse(code, mode='exec')
 
@@ -10,7 +11,6 @@ def exec_then_eval(code):
     _globals, _locals = {}, {}
     exec(compile(block, '<string>', mode='exec'), _globals, _locals)
     return eval(compile(last, '<string>', mode='eval'), _globals, _locals)
-'''
 
 
 class Descriptor:
@@ -111,69 +111,28 @@ def make_signature(names):
 from collections import OrderedDict
 
 
-class NicksMetastructure(type):
-    """
-    OrderedDict() keeps things in order as they are provided... think FIFO when providing arguments to this function...
-
-    Example:
-        class Stock(NicksMetaStructure):
-            name = SizedString(maxlen=4) <- We don't need to add in the field name because it is provided before '=' lol
-            shares = PositiveInteger()
-            price = PositiveFloat()
-
-        OrderedDict() takes 'name', then 'shares', then 'price' and stores them within the dictionary
-
-        Structure:
-            clsdict = OrderedDict(
-                ('name', <class 'SizedString'>),
-                ('shares', <class 'PositiveInteger'>),
-                ('price', <class 'PositiveFloat'>)
-            )
-
-    """
+class NicksMetaStructure(type):
 
     @classmethod
     def __prepare__(cls, name, bases):
-        """
-        See Example Structure above :)
-
-        You could customize what you want to return, if you wanted to do duplicate variable detection then simply
-        implement the function displayed in 1:33:22 in 'Python 3 Metaprogramming' YouTube video by David Beazley
-
-        Link: https://www.youtube.com/watch?v=sPiWg5jSoZI&t=5608s
-
-        THANK YOU DAVID BEAZLEY
-        """
-
-        print("OrderedDict passed by __prepare__ classmethod:", OrderedDict)
         return OrderedDict()
 
     def __new__(mcs, clsname, bases, clsdict):
-        # Collect Descriptors and set their names
-
-        """
-        Anaylzing __new__:
-
-        Explanation:
-            Everything returned in clsdict.items() is returned and added to fields array
-            Pass clsdict array inside of clsobj during super().__new__(cls,clsname,bases,dict(clsdict)) to
-
-        """
+        #  Collect Descriptors and set their names
         fields = [key for key, val in clsdict.items() if isinstance(val, Descriptor)]
 
-        # For each field, print name, added the field to the clsdict object, and then create the object associated
         for name in fields:
             print(name)
             clsdict[name].name = name
+
         clsobj = super().__new__(mcs, clsname, bases, dict(clsdict))
 
         sig = make_signature(fields)
         setattr(clsobj, '__signature__', sig)
-        print(sig)
         return clsobj
 
 
-class MetaClass(metaclass=NicksMetastructure):
+class MetaClass(metaclass=NicksMetaStructure):
     _fields = ['name']
 
     def __init__(self, *args, **kwargs):
@@ -188,23 +147,9 @@ class SkeletonStruct(MetaClass):
 
 
 class Stock(MetaClass):
-    """
-
-    Because of the __prepare__ classmethod inside of our metastructure (what gets ran upon every class instance),
-    we are able to take the name of the variable and store it within clsdict before passing it to our Descriptors
-    to
-
-    """
-
     data = SizedStringContains(maxlen=5, contains_char='Z')  # maxlen and contains_char are interchangeable
     shares = PostiveInteger()
     price = PositiveFloat()
-    test_var = Integer()
-
-    @staticmethod
-    def func_test(*args, **kwargs):
-        print("args:", args, "kwargs:", kwargs)
-        return
 
 
 class futureClassStruct(MetaClass):
@@ -216,20 +161,6 @@ class futureClassStruct(MetaClass):
     """
 
 
-def old_main():
-    s = Stock('FOOZ', 10, 1.00, 52)  # Creates Stock object
-
-    print(type(s.data))  # name is a string with a max length of 5, contains char then returns the string, else err
-
-    # .name = 'I'  # returns value, which is a string, otherwise raise error on **first** failed condition
-    # s.name = 'II'  # returns value, which is a string, otherwise raise error on **first** failed condition
-    # s.name='NOOOOI' # returns ValueError: Too big (maxlen = 5, contains_char='I')
-    # s.name='NOOO' # returns Value Error: String does not contain Z (maxlen = 5, contains_char='Z')
-
-    print(PostiveInteger.__mro__)  # Checks PositiveInteger -> Integer -> Typed -> Positive -> Descriptor -> object
-    print(s.test_var)
-
-
 class print_string:
     string = "Test"
     print(string)
@@ -238,15 +169,12 @@ class print_string:
 def main():
     class_struct = SkeletonStruct('''
 class print_string():
-    string = "Successfully executed string code!! Keep it up buddy."
+    string = "Test"
     print(string)
-''')
-
+''', 2, 4.0)
     exec(class_struct.expression)
-    s = Stock('FOOZ', 10, 1.00, 52)  # Creates Stock object
-    print(s.data)
-    s.func_test("))", 2, 5, test=5)
-    print(s.__dict__)
+    exec_then_eval(class_struct.expression)
+    # timeit.Timer(stmt=class_struct.expression)
 
 
 if __name__ == '__main__':
