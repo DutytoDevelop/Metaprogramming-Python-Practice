@@ -2,11 +2,20 @@ import timeit
 
 
 def open_python_file(python_filename):
+
     # Initialize empty string variable
     python_code = ""
 
-    # Open python file in read-mode
-    f = open(python_filename, 'r')
+    try:
+        # Open python file in read-mode
+        f = open(python_filename, 'r')
+    except FileNotFoundError as e:
+        print(e)
+        raise e
+    finally:
+        f.close()
+        return
+
 
     # For each line of code in file that's not blank, append to python_code variable (and print it for debugging)
     for code in f:

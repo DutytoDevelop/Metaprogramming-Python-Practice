@@ -4,11 +4,18 @@ import timeit
 # from meta import main
 
 def print_file(python_file):
-    f = open(python_file, 'r')
-    for code in f:
-        if code is not "\n":
-            print(code)
-    return
+
+    try:
+        f = open(python_file, 'r')
+        for code in f:
+            if code is not "\n":
+                print(code)
+    except IOError as e:
+        print(e)
+        raise e
+    finally:
+        f.close()
+        return
 
 
 if __name__ == '__main__':
