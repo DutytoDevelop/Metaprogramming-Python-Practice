@@ -15,7 +15,7 @@ def print_file(python_file):
         raise e
     finally:
         f.close()
-        return
+    return
 
 
 if __name__ == '__main__':
