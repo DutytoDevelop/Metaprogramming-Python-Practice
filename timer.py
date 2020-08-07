@@ -14,8 +14,6 @@ def open_python_file(python_filename):
         raise e
     finally:
         f.close()
-        return
-
 
     # For each line of code in file that's not blank, append to python_code variable (and print it for debugging)
     for code in f:
