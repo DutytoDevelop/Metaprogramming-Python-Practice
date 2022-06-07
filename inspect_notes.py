@@ -1,5 +1,7 @@
 import importlib, sys, inspect, os
 global num_classes
+from gui.tkinter_treeview import make_treeview
+
 num_classes = 1
 
 class NicksMetastructure(type):
@@ -171,5 +173,4 @@ if __name__ == '__main__':
     python_file_struct_list = return_node_tree(module)
     gui_title = module.__name__
     print(python_file_struct_list)
-    from gui.tkinter_notes.tkinter_treeview import make_treeview
     make_treeview(gui_title, python_file_struct_list.get(module.__name__))
