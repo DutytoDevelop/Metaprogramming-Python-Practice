@@ -38,7 +38,7 @@ class inheritMetaClass(MetaClass):
 
 
     def every_class_gets_this(cls):
-        print("OVerride")
+        print("Override")
 
 
 def get_class_objs_in_module(module):
@@ -65,11 +65,11 @@ def get_class_name_in_module(module):
     return class_name_only
 
 def module_and_class(module_obj,class_name):
-    klass = module_obj.__class__
-    module = klass.__module__
+    class_name = module_obj.__class__
+    module = class_name.__module__
     if module == 'builtins':
-        return klass.__qualname__ # avoid outputs like 'builtins.str'
-    return module + '.' + klass.__qualname__
+        return class_name.__qualname__ # avoid outputs like 'builtins.str'
+    return module + '.' + class_name.__qualname__
 
 def get_methods(class_name):
     class_method_dict = {}
